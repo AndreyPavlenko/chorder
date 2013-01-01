@@ -1,0 +1,137 @@
+#!/bin/sh
+set -e
+
+# Channel definition pattern. See the syntax of channels.conf for details:
+# http://linuxtv.org/vdrwiki/index.php/Syntax_of_channels.conf#VPID.
+CH_PATTERN=' *(.+?) *; *(.+?) *: *(.+?) *: *(.+?) *: *(S[0-9\\.]+[EW]) *: *(.+?) *: *(.+?) *: *(.+?) *: *(.+?) *: *(.+?) *: *(.+?) *: *(.+?) *: *(.+?) *: *(.+?) *'
+
+BASENAME="$(basename "$0")"
+[ ! -e '/dev/shm' ] || mktemp_args='--tmpdir=/dev/shm'
+INPUT_FILE="$(mktemp $mktemp_args ${BASENAME}_XXX.in)"
+OUTPUT_FILE="$(mktemp $mktemp_args ${BASENAME}_XXX.out)"
+TMP_FILE="$(mktemp $mktemp_args ${BASENAME}_XXX.tmp)"
+
+cleanup() { rm -f "$INPUT_FILE" "$OUTPUT_FILE" "$TMP_FILE"; }
+trap cleanup EXIT HUP INT QUIT TERM
+
+usage() {
+cat << EOF
+Usage: $(basename "$0") [options] <template>
+
+OPTIONS:
+   -x <expr>    Regular expression mathing channels that should be excluded.
+   -X <file>    File with channel exclude expressions (one per line).
+   -f <expr>    This option allows to override a channel's fields.
+                <expr> - semicolon separated fields declaration expressed in Perl language.
+                The following example overrides the CA field if the channel's provider is HTB+:
+                -f '\$f10 = (\$f2 eq 'HTB+') ? '500,5601' : \$f10'
+   -F <file>    File with channel field override expressions (one per line).
+   -v           Verbose mode - print debug messages to stderr.
+   -h           Print help.
+   <template>   channels.conf template file.
+EOF
+}
+
+debug() {
+    if [ ! -z "$VERBOSE" ]; then echo $@ 1>&2 ; fi
+}
+
+# Parse arguments
+while getopts 'x:X:f:F:vh' o
+do
+    case "$o" in
+    x)
+        if [ -z "$X_PATTERN" ]; then X_PATTERN="$OPTARG"; else X_PATTERN="$X_PATTERN|$OPTARG"; fi
+        shift 2
+        ;;
+    X)
+        tmp="$(grep -xvE '^(\s*|\s*#.*)$' "$OPTARG" | head -c -1 | tr '\n' '|')"
+        if [ -z "$X_PATTERN" ]; then X_PATTERN="$tmp"; else X_PATTERN="$X_PATTERN|$tmp"; fi
+        shift 2
+        ;;
+    f)
+        if [ -z "$ch_ufields" ]; then ch_ufields="$OPTARG"; else X_PATTERN="$ch_ufields; $OPTARG"; fi
+        shift 2
+        ;;
+    F)
+        tmp="$(grep -xvE '^(\s*|\s*#.*)$' "$OPTARG" | head -c -1 | tr '\n' ';')"
+        if [ -z "$ch_ufields" ]; then ch_ufields="$tmp"; else ch_ufields="$ch_ufields; $tmp"; fi
+        shift 2
+        ;;
+    v)
+        VERBOSE='true'
+        shift 1
+        ;;
+    h)
+        echo 'This script reads a VDR channels.conf from stdin and generates a new channels.conf, based on the specified template, to stdout.'
+        usage
+        exit 0
+        ;;
+    *)
+        usage 1>&2
+        exit 1
+        ;;
+    esac
+done
+
+[ "$#" != 0 ] || (echo "Template file is not specified" 1>&2 && usage 1>&2 && exit 1)
+eval TEMPLATE=\${$#}
+[ -f "$TEMPLATE" ] || (echo "Template file not found: $TEMPLATE" 1>&2 && usage 1>&2 && exit 1)
+
+# Preprocess
+for i in $(seq 14 -1 1); do ch_fields="\$f$i=\"\$$i\"; $ch_fields"; done
+perl -ne "print if s/$CH_PATTERN/$ch_fields; $ch_ufields; "\$f1".';'."\$f2".':'."\$f3".':'."\$f4".':'."\$f5".':'."\$f6".':'."\$f7".':'."\$f8".':'."\$f9".':'."\$f10".':'."\$f11".':'."\$f12".':'."\$f13".':'."\$f14"/ge" > "$INPUT_FILE"
+
+# Exclude channels
+if [ ! -z "$X_PATTERN" ]
+then
+	# Debug excludes
+	if [ ! -z "$VERBOSE" ]
+    then
+    	debug "Excluded:"
+        grep -ixE "$X_PATTERN" < "$INPUT_FILE" | sort -Vu 1>&2
+    fi
+	
+    grep -vixE "$X_PATTERN" < "$INPUT_FILE" > "$TMP_FILE"
+    mv "$TMP_FILE" "$INPUT_FILE"
+fi
+
+# Order channels
+debug "\nMatched:"
+grep -xvE '^\s*#.*$' "$TEMPLATE" | while read line
+do
+    if echo "$line" | grep -qE '^(:.+$|\s*)$'
+    then
+        echo "$line" | tee -a "$OUTPUT_FILE"
+    elif grep -ixE "$line" < "$INPUT_FILE" > "$TMP_FILE"
+    then
+        [ -z "$VERBOSE" ] || debug "$(wc -l < "$TMP_FILE") matches\t|\t$line"
+        sort -Vu "$TMP_FILE" | tee -a "$OUTPUT_FILE"
+        grep -vixE "$line" < "$INPUT_FILE" > "$TMP_FILE"
+        mv "$TMP_FILE" "$INPUT_FILE"
+    else
+        debug "0 matches\t|\t$line"
+    fi
+done
+
+# Debug
+if [ ! -z "$VERBOSE" ]
+then
+	# Print missing
+    if [ "$(wc -l < "$INPUT_FILE")" != '0' ]
+    then
+        debug '\nNot matched:'
+        cat "$INPUT_FILE" 1>&2
+    fi
+    
+    # Print duplicates
+    perl -ne 'print if s/'"$CH_PATTERN"'/ *(\\\\Q$1\\\\E) *; *(\\\\Q$2\\\\E) *: *(.+?) *: *(.+?) *: *(S[0-9\\.]+[EW]) *: *(.+?) *: *(\\\\Q$7\\\\E) *: *(.+?) *: *(.+?) *: *(.+?) *: *(.+?) *: *(.+?) *: *(.+?) *: *(.+?) */g' < "$OUTPUT_FILE" | sort -u | \
+    while read i
+    do
+    	if [ "$(grep -P " $i" "$OUTPUT_FILE" | wc -l)" != '1' ]
+    	then
+    		if [ -z "$first_dup" ]; then first_dup='false'; debug '\nDuplicates:'; fi
+    		grep -P " $i" "$OUTPUT_FILE" 1>&2
+    	fi
+    done
+fi
