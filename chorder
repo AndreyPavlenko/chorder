@@ -2,21 +2,24 @@
 set -e
 
 # Channel definition pattern. See the syntax of channels.conf for details:
-# http://linuxtv.org/vdrwiki/index.php/Syntax_of_channels.conf#VPID.
+# http://linuxtv.org/vdrwiki/index.php/Syntax_of_channels.conf.
 CH_PATTERN=' *(.+?) *; *(.+?) *: *(.+?) *: *(.+?) *: *(S[0-9\\.]+[EW]) *: *(.+?) *: *(.+?) *: *(.+?) *: *(.+?) *: *(.+?) *: *(.+?) *: *(.+?) *: *(.+?) *: *(.+?) *'
+INPUT='/dev/stdin'
+OUTPUT='/dev/stdout'
+DEBUG='/dev/stderr'
 
 BASENAME="$(basename "$0")"
 [ ! -e '/dev/shm' ] || mktemp_args='--tmpdir=/dev/shm'
-INPUT_FILE="$(mktemp $mktemp_args ${BASENAME}_XXX.in)"
-OUTPUT_FILE="$(mktemp $mktemp_args ${BASENAME}_XXX.out)"
+TMP_INPUT_FILE="$(mktemp $mktemp_args ${BASENAME}_XXX.in)"
+TMP_OUTPUT_FILE="$(mktemp $mktemp_args ${BASENAME}_XXX.out)"
 TMP_FILE="$(mktemp $mktemp_args ${BASENAME}_XXX.tmp)"
 
-cleanup() { rm -f "$INPUT_FILE" "$OUTPUT_FILE" "$TMP_FILE"; }
+cleanup() { rm -f "$TMP_INPUT_FILE" "$TMP_OUTPUT_FILE" "$TMP_FILE"; }
 trap cleanup EXIT HUP INT QUIT TERM
 
 usage() {
 cat << EOF
-Usage: $(basename "$0") [options] <template>
+Usage: $(basename "$0") [options] [template]
 
 OPTIONS:
    -x <expr>    Regular expression mathing channels that should be excluded.
@@ -26,18 +29,21 @@ OPTIONS:
                 The following example overrides the CA field if the channel's provider is HTB+:
                 -f '\$f10 = (\$f2 eq 'HTB+') ? '500,5601' : \$f10'
    -F <file>    File with channel field override expressions (one per line).
-   -v           Verbose mode - print debug messages to stderr.
+   -i <file>    Read the specified input file instead of stdin. 
+   -o <file>    Write to the specified output file instead of stdout. 
+   -d <file>    Write debug messages to the specified file instead of sterr. 
+   -t <file>    Template file. 
+   -v           Verbose mode - print debug information.
    -h           Print help.
-   <template>   channels.conf template file.
 EOF
 }
 
 debug() {
-    if [ ! -z "$VERBOSE" ]; then echo $@ 1>&2 ; fi
+    if [ ! -z "$VERBOSE" ]; then echo $@ >> "$DEBUG" ; fi
 }
 
 # Parse arguments
-while getopts 'x:X:f:F:vh' o
+while getopts 'x:X:f:F:i:o:d:t:vh' o
 do
     case "$o" in
     x)
@@ -58,12 +64,30 @@ do
         if [ -z "$ch_ufields" ]; then ch_ufields="$tmp"; else ch_ufields="$ch_ufields; $tmp"; fi
         shift 2
         ;;
+    i)
+        INPUT="$OPTARG"
+        shift 2
+        ;;
+    o)
+        rm -f "$OPTARG"
+        OUTPUT="$OPTARG"
+        shift 2
+        ;;
+    d)
+        rm -f "$OPTARG"
+        DEBUG="$OPTARG"
+        shift 2
+        ;;
+    t)
+        TEMPLATE="$OPTARG"
+        shift 2
+        ;;
     v)
         VERBOSE='true'
         shift 1
         ;;
     h)
-        echo 'This script reads a VDR channels.conf from stdin and generates a new channels.conf, based on the specified template, to stdout.'
+        echo 'This script reads a VDR channels.conf form standard input or file and orders channels according to the specified template.'
         usage
         exit 0
         ;;
@@ -74,13 +98,13 @@ do
     esac
 done
 
-[ "$#" != 0 ] || (echo "Template file is not specified" 1>&2 && usage 1>&2 && exit 1)
-eval TEMPLATE=\${$#}
+: ${TEMPLATE:="$1"}
+[ ! -z "$TEMPLATE" ] || (echo "Template file is not specified" 1>&2 && usage 1>&2 && exit 1)
 [ -f "$TEMPLATE" ] || (echo "Template file not found: $TEMPLATE" 1>&2 && usage 1>&2 && exit 1)
 
 # Preprocess
 for i in $(seq 14 -1 1); do ch_fields="\$f$i=\"\$$i\"; $ch_fields"; done
-perl -ne "print if s/$CH_PATTERN/$ch_fields; $ch_ufields; "\$f1".';'."\$f2".':'."\$f3".':'."\$f4".':'."\$f5".':'."\$f6".':'."\$f7".':'."\$f8".':'."\$f9".':'."\$f10".':'."\$f11".':'."\$f12".':'."\$f13".':'."\$f14"/ge" > "$INPUT_FILE"
+perl -ne "print if s/$CH_PATTERN/$ch_fields; $ch_ufields; "\$f1".';'."\$f2".':'."\$f3".':'."\$f4".':'."\$f5".':'."\$f6".':'."\$f7".':'."\$f8".':'."\$f9".':'."\$f10".':'."\$f11".':'."\$f12".':'."\$f13".':'."\$f14"/ge" < "$INPUT" > "$TMP_INPUT_FILE"
 
 # Exclude channels
 if [ ! -z "$X_PATTERN" ]
@@ -89,11 +113,11 @@ then
 	if [ ! -z "$VERBOSE" ]
     then
     	debug "Excluded:"
-        grep -ixE "$X_PATTERN" < "$INPUT_FILE" | sort -Vu 1>&2
+        grep -ixE "$X_PATTERN" < "$TMP_INPUT_FILE" | sort -Vu >> "$DEBUG"
     fi
 	
-    grep -vixE "$X_PATTERN" < "$INPUT_FILE" > "$TMP_FILE"
-    mv "$TMP_FILE" "$INPUT_FILE"
+    grep -vixE "$X_PATTERN" < "$TMP_INPUT_FILE" > "$TMP_FILE"
+    mv "$TMP_FILE" "$TMP_INPUT_FILE"
 fi
 
 # Order channels
@@ -102,13 +126,13 @@ grep -xvE '^\s*#.*$' "$TEMPLATE" | while read line
 do
     if echo "$line" | grep -qE '^(:.+$|\s*)$'
     then
-        echo "$line" | tee -a "$OUTPUT_FILE"
-    elif grep -ixE "$line" < "$INPUT_FILE" > "$TMP_FILE"
+        echo "$line" | tee -a "$TMP_OUTPUT_FILE" >> "$OUTPUT"
+    elif grep -ixE "$line" < "$TMP_INPUT_FILE" > "$TMP_FILE"
     then
         [ -z "$VERBOSE" ] || debug "$(wc -l < "$TMP_FILE") matches\t|\t$line"
-        sort -Vu "$TMP_FILE" | tee -a "$OUTPUT_FILE"
-        grep -vixE "$line" < "$INPUT_FILE" > "$TMP_FILE"
-        mv "$TMP_FILE" "$INPUT_FILE"
+        sort -Vu "$TMP_FILE" | tee -a "$TMP_OUTPUT_FILE" >> "$OUTPUT"
+        grep -vixE "$line" < "$TMP_INPUT_FILE" > "$TMP_FILE"
+        mv "$TMP_FILE" "$TMP_INPUT_FILE"
     else
         debug "0 matches\t|\t$line"
     fi
@@ -118,20 +142,20 @@ done
 if [ ! -z "$VERBOSE" ]
 then
 	# Print missing
-    if [ "$(wc -l < "$INPUT_FILE")" != '0' ]
+    if [ "$(wc -l < "$TMP_INPUT_FILE")" != '0' ]
     then
         debug '\nNot matched:'
-        cat "$INPUT_FILE" 1>&2
+        cat "$TMP_INPUT_FILE" >> "$DEBUG"
     fi
     
     # Print duplicates
-    perl -ne 'print if s/'"$CH_PATTERN"'/ *(\\\\Q$1\\\\E) *; *(\\\\Q$2\\\\E) *: *(.+?) *: *(.+?) *: *(S[0-9\\.]+[EW]) *: *(.+?) *: *(\\\\Q$7\\\\E) *: *(.+?) *: *(.+?) *: *(.+?) *: *(.+?) *: *(.+?) *: *(.+?) *: *(.+?) */g' < "$OUTPUT_FILE" | sort -u | \
+    perl -ne 'print if s/'"$CH_PATTERN"'/ *(\\\\Q$1\\\\E) *; *(\\\\Q$2\\\\E) *: *(.+?) *: *(.+?) *: *(S[0-9\\.]+[EW]) *: *(.+?) *: *(\\\\Q$7\\\\E) *: *(.+?) *: *(.+?) *: *(.+?) *: *(.+?) *: *(.+?) *: *(.+?) *: *(.+?) */g' < "$TMP_OUTPUT_FILE" | sort -u | \
     while read i
     do
-    	if [ "$(grep -P " $i" "$OUTPUT_FILE" | wc -l)" != '1' ]
+    	if [ "$(grep -P " $i" "$TMP_OUTPUT_FILE" | wc -l)" != '1' ]
     	then
     		if [ -z "$first_dup" ]; then first_dup='false'; debug '\nDuplicates:'; fi
-    		grep -P " $i" "$OUTPUT_FILE" 1>&2
+    		grep -P " $i" "$TMP_OUTPUT_FILE" >> "$DEBUG"
     	fi
     done
 fi
