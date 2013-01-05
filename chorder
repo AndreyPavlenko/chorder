@@ -131,7 +131,7 @@ do
     then
         [ -z "$VERBOSE" ] || debug "$(wc -l < "$TMP_FILE") matches\t|\t$line"
         sort -Vu "$TMP_FILE" | tee -a "$TMP_OUTPUT_FILE" >> "$OUTPUT"
-        grep -vixE "$line" < "$TMP_INPUT_FILE" > "$TMP_FILE"
+        grep -vixE "$line" < "$TMP_INPUT_FILE" > "$TMP_FILE" || true
         mv "$TMP_FILE" "$TMP_INPUT_FILE"
     else
         debug "0 matches\t|\t$line"
