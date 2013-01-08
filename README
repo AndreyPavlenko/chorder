@@ -1,0 +1,22 @@
+This script reads a VDR channels.conf form standard input or file and orders 
+channels according to the specified template.
+Usage: chorder [options] [template]
+
+OPTIONS:
+   -x <expr>    Regular expression mathing channels that should be excluded.
+   -X <file>    File with channel exclude expressions (one per line).
+   -f <expr>    This option allows to override a channel's fields.
+                <expr> - semicolon separated fields declaration expressed in Perl language.
+                The following example overrides the CA field if the channel's provider is HTB+:
+                -f '$f10 = ($f2 eq 'HTB+') ? '500,5601' : $f10'
+   -F <file>    File with channel field override expressions (one per line).
+   -i <file>    Read the specified input file instead of stdin. 
+   -o <file>    Write to the specified output file instead of stdout. 
+   -d <file>    Write debug messages to the specified file instead of sterr. 
+   -t <file>    Template file. 
+   -v           Verbose mode - print debug information.
+   -h           Print help.
+   
+Example:
+./chorder -v -X examples/channels.conf.exclude -F examples/channels.conf.fields \
+          -t examples/channels.conf.template < /etc/vdr/channels.conf 
