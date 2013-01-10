@@ -3,7 +3,7 @@ set -e
 
 # Channel definition pattern. See the syntax of channels.conf for details:
 # http://linuxtv.org/vdrwiki/index.php/Syntax_of_channels.conf.
-CH_PATTERN=' *(.+?) *; *(.+?) *: *(.+?) *: *(.+?) *: *(S[0-9\\.]+[EW]) *: *(.+?) *: *(.+?) *: *(.+?) *: *(.+?) *: *(.+?) *: *(.+?) *: *(.+?) *: *(.+?) *: *(.+?) *'
+CH_PATTERN=' *(.+?) *; *(.+?) *: *(.+?) *: *(.+?) *: *(.+?) *: *(.+?) *: *(.+?) *: *(.+?) *: *(.+?) *: *(.+?) *: *(.+?) *: *(.+?) *: *(.+?) *: *(.+?) *'
 INPUT='/dev/stdin'
 OUTPUT='/dev/stdout'
 DEBUG='/dev/stderr'
@@ -149,7 +149,7 @@ then
     fi
     
     # Print duplicates
-    perl -ne 'print if s/'"$CH_PATTERN"'/ *(\\\\Q$1\\\\E) *; *(\\\\Q$2\\\\E) *: *(.+?) *: *(.+?) *: *(S[0-9\\.]+[EW]) *: *(.+?) *: *(\\\\Q$7\\\\E) *: *(.+?) *: *(.+?) *: *(.+?) *: *(.+?) *: *(.+?) *: *(.+?) *: *(.+?) */g' < "$TMP_OUTPUT_FILE" | sort -u | \
+    perl -ne 'print if s/'"$CH_PATTERN"'/ *(\\\\Q$1\\\\E) *; *(\\\\Q$2\\\\E) *: *(.+?) *: *(.+?) *: *(.+?) *: *(.+?) *: *(\\\\Q$7\\\\E) *: *(.+?) *: *(.+?) *: *(.+?) *: *(.+?) *: *(.+?) *: *(.+?) *: *(.+?) */g' < "$TMP_OUTPUT_FILE" | sort -u | \
     while read i
     do
     	if [ "$(grep -P " $i" "$TMP_OUTPUT_FILE" | wc -l)" != '1' ]
