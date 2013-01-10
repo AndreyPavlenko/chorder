@@ -1,0 +1,14 @@
+Source: chorder
+Section: utils
+Priority: optional
+Maintainer: #MAINTAINER#
+Build-Depends: debhelper (>= 8.0.0)
+Standards-Version: 3.9.3
+Homepage: https://github.com/AndreyPavlenko/chorder.git
+
+Package: chorder
+Architecture: all
+Depends: perl, grep, sed, coreutils
+Description: VDR channels.conf reorder script.
+ This script reads a VDR channels.conf form standard input or file and orders 
+ channels according to the specified template.

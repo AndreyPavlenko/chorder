@@ -1,0 +1,21 @@
+#!/usr/bin/make -f
+
+DIR := $(CURDIR)
+DESTDIR := $(DIR)/debian/chorder
+
+%:
+	dh $@ 
+
+override_dh_auto_build:
+
+override_dh_auto_install:
+	[ -d "$(DESTDIR)/usr/bin" ] || mkdir -p "$(DESTDIR)/usr/bin"
+	cp "$(DIR)/chorder" "$(DESTDIR)/usr/bin"
+	
+override_dh_installexamples:
+	[ -d "$(DESTDIR)/usr/share/doc/chorder" ] || mkdir -p "$(DESTDIR)/usr/share/doc/chorder"
+	cp -r "$(DIR)/examples" "$(DESTDIR)/usr/share/doc/chorder"
+
+override_dh_installdocs:
+	[ -d "$(DESTDIR)/usr/share/doc/chorder" ] || mkdir -p "$(DESTDIR)/usr/share/doc/chorder"
+	cp "$(DIR)/README" "$(DESTDIR)/usr/share/doc/chorder"
