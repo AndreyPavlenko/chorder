@@ -7,6 +7,7 @@ CH_PATTERN=' *(.+?) *; *(.+?) *: *(.+?) *: *(.+?) *: *(.+?) *: *(.+?) *: *(.+?) 
 INPUT='/dev/stdin'
 OUTPUT='/dev/stdout'
 DEBUG='/dev/stderr'
+VERSION='1.0.0'
 
 BASENAME="$(basename "$0")"
 [ ! -e '/dev/shm' ] || mktemp_args='--tmpdir=/dev/shm'
@@ -87,6 +88,7 @@ do
         shift 1
         ;;
     h)
+        echo "$BASENAME version $VERSION"
         echo 'This script reads a VDR channels.conf form standard input or file and orders channels according to the specified template.'
         usage
         exit 0
