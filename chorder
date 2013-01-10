@@ -70,12 +70,12 @@ do
         shift 2
         ;;
     o)
-        rm -f "$OPTARG"
+        > "$OPTARG"
         OUTPUT="$OPTARG"
         shift 2
         ;;
     d)
-        rm -f "$OPTARG"
+        > "$OPTARG"
         DEBUG="$OPTARG"
         shift 2
         ;;
