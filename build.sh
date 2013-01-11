@@ -43,7 +43,7 @@ BUILD_DATE=$(date +%d.%m.%y)
 : ${BUILDPACKAGE_ARGS:="-uc -us"}
 
 # Space separated list of target platfroms
-: ${TARGET_PLATFROMS:="$(lsb_release -cs):$(dpkg-architecture -qDEB_BUILD_ARCH)"}
+: ${TARGET_PLATFORMS:="$(lsb_release -cs):$(dpkg-architecture -qDEB_BUILD_ARCH)"}
 
 # Build script dependencies
 : ${DEPENDS:="pbuilder debootstrap lsb-release dpkg-dev debhelper git perl"}
@@ -151,7 +151,7 @@ create_source_packages() {
     sed -i "s/#MAINTAINER#/$MAINTAINER/" "$BUILD_DIR/debian/control"
     
     # Create source packages
-    for dist in $(for i in $TARGET_PLATFROMS; do echo $i | awk -F ':' '{print $1}'; done | sort -u)
+    for dist in $(for i in $TARGET_PLATFORMS; do echo $i | awk -F ':' '{print $1}'; done | sort -u)
     do
         $RM -rf "$src/debian"
         cp -r "$BUILD_DIR/debian" "$src"
@@ -215,7 +215,7 @@ build_source_packages() {
     : ${PACKAGES:=$(ls *.dsc)}
     $RM -rf "$BUILD_DIR"
 
-    for i in $TARGET_PLATFROMS
+    for i in $TARGET_PLATFORMS
     do
         local distrib=$(echo $i | awk -F ':' '{print $1}')
         local arch=$(echo $i | awk -F ':' '{print $2}')
@@ -247,8 +247,8 @@ check_updates() {
     local version="${VERSION}-${ci_count}~${sha_short}"
     local names=''
 
-    : ${TARGET_PLATFROMS:="$(lsb_release -cs):$(dpkg-architecture -qDEB_BUILD_ARCH)"}
-    for dist in $(for i in $TARGET_PLATFROMS; do echo $i | awk -F ':' '{print $1}'; done | sort -u)
+    : ${TARGET_PLATFORMS:="$(lsb_release -cs):$(dpkg-architecture -qDEB_BUILD_ARCH)"}
+    for dist in $(for i in $TARGET_PLATFORMS; do echo $i | awk -F ':' '{print $1}'; done | sort -u)
     do
         local url="$(echo "$PPA_SOURCES" | sed "s/#DISTRIB#/$dist/")"
         echo -n "Checking updates for $PKG_NAME: $url ... - "
