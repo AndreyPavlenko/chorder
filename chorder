@@ -246,7 +246,7 @@ if [ ! -z "$VERBOSE" ] && [ -s "$TMP_INPUT_FILE" ]
 then
     if [ -s "$TMP_OUTPUT_FILE" ]
     then
-        grep -vF -f "$TMP_OUTPUT_FILE" < "$TMP_INPUT_FILE" >> "$DEBUG"
+        grep -vF -f "$TMP_OUTPUT_FILE" < "$TMP_INPUT_FILE" >> "$DEBUG" || true
     else
         cat "$TMP_INPUT_FILE" >> "$DEBUG"
     fi
