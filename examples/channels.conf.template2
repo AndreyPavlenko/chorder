@@ -1,0 +1,39 @@
+# group_by_provider is an internal function which groups all channels by the 
+# provider name. The function accepts one argument - name pattern. The default 
+# value is $name.
+$t group_by_provider '~$name~'
+
+:HD
+HD
+
+:Эфирные
+Домашний;HTB+
+Звезда;HTB+
+НТВ;HTB+
+ПЕРЕЦ;HTB+
+$E Первый( HD.*)?;HTB\\+
+Пятый канал;HTB+
+Рен ТВ;HTB+
+$E Россия (1|К|HD);HTB+
+СТС-Москва;HTB+
+ТВ3;TricolorTV
+ТВЦ;HTB+
+ТНТ;HTB+
+
+:ФУТБОЛ
+$i футбол.*;HTB+
+$i футбол.*;TricolorTV
+
+:Спорт
+$Eix (Россия 2|Теннис|Баскетбол|.+КХЛ|.*(спорт|sports?).*);HTB\\+:.+
+
+:Кино
+$r Кинорейс .*;HTB+
+$r Экран .*;TricolorTV
+$Exi (.*(кино|MGM|TV1000|Комедия ТВ|Премьера|Русский Иллюзион|Эгоист ТВ|AXN Sci Fi|FOX|SONY ТВ|TV-21|Universal|Zone Romantica).*;HTB\\+|(Кинопоказ).*;TricolorTV):.+
+
+:Новостные
+$Ex .*(BBC|Bloomberg|CNN|Euronews|France 24|Дождь|Комсомольская правда|Москва 24|Первый МЕТЕО|Подмосковье|РБК-ТВ|Россия 24).*;HTB\\+:.+
+
+:Детские
+$Ex .*((Cartoon|Gulli|Jim Jam|Nickelodeon|TiJi|Детский мир|Канал Disney|Карусель|Karusel).*;HTB\\+|(Мультимания|Радость моя).*;TricolorTV):.+

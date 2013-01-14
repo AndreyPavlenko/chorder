@@ -1,6 +1,9 @@
 # CA field override for TricolorTV and HTB+
 $f10 = ($f2 eq 'TricolorTV') ? '4AE0,4AE1' : ($f2 eq 'HTB+') ? '500,5601' : $f10
 
+# Rename providers
+$f2 = ($f2 eq 'HTB+') || ($f2 eq 'НТВ+') ? 'HTB+' : $f2
+
 # Rename some channels
 $f1 = ($f1 eq 'REN-TV') && ($f2 eq 'HTB+') ? 'Рен ТВ' : $f1
 $f1 = ($f1 eq 'НТВ-ПЛЮС Футбол') && ($f2 eq 'HTB+') ? 'Футбол' : $f1

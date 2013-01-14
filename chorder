@@ -18,6 +18,38 @@ TMP_FILE="$(mktemp $mktemp_args ${BASENAME}_XXX.tmp)"
 cleanup() { rm -f "$TMP_INPUT_FILE" "$TMP_OUTPUT_FILE" "$TMP_FILE"; }
 trap cleanup EXIT HUP INT QUIT TERM
 
+################################ Functions ####################################
+help() {
+cat << EOF
+This script reads a VDR channels.conf form standard input or file and orders 
+channels according to the specified template. Template is a text file with grep
+patterns (one per line) matching VDR channels from the the input. Please refer
+to the grep documentation for the pattern details.
+
+Lines starting with hash (#) are treated as comments. Lines starting with colon
+(:) are treated as group names. Lines ending with backslash (\) are joined with 
+the next line. The backslash acts as escape character and must be escaped in 
+the patterns.
+
+Lines starting with '\$' character are treated as:
+
+    '\$e <script>'       Evaluate the script and append the script's output to 
+                        the channels output stream.
+
+    '\$t <script>'       Evaluate the script and process the script's output as
+                        channels template. This can be used for dynamic templates
+                        generation.
+
+    '\$<args> <pattern>' Match channels with the specified pattern and grep 
+                        arguments.
+
+    '\$r <regex>'        Remove the matched channels from the input to prevent
+                        subsequent matching with different patterns. The r option 
+                        may be mixed with the grep args.
+
+EOF
+}
+
 usage() {
 cat << EOF
 Usage: $(basename "$0") [options] [template]
@@ -25,15 +57,16 @@ Usage: $(basename "$0") [options] [template]
 OPTIONS:
    -x <expr>    Regular expression mathing channels that should be excluded.
    -X <file>    File with channel exclude expressions (one per line).
-   -f <expr>    This option allows to override a channel's fields.
-                <expr> - semicolon separated fields declaration expressed in Perl language.
-                The following example overrides the CA field if the channel's provider is HTB+:
+   -f <decl>    This option allows to override a channel's fields.
+                <decl> - semicolon separated fields declaration expressed in 
+                Perl language. The following example overrides the CA field if 
+                the channel's provider is HTB+:
                 -f '\$f10 = (\$f2 eq 'HTB+') ? '500,5601' : \$f10'
    -F <file>    File with channel field override expressions (one per line).
-   -i <file>    Read the specified input file instead of stdin. 
-   -o <file>    Write to the specified output file instead of stdout. 
-   -d <file>    Write debug messages to the specified file instead of sterr. 
-   -t <file>    Template file. 
+   -i <file>    Read the specified input file instead of stdin.
+   -o <file>    Write to the specified output file instead of stdout.
+   -d <file>    Write debug messages to the specified file instead of sterr.
+   -t <file>    Template file.
    -v           Verbose mode - print debug information.
    -h           Print help.
 EOF
@@ -42,6 +75,18 @@ EOF
 debug() {
     if [ ! -z "$VERBOSE" ]; then echo $@ >> "$DEBUG" ; fi
 }
+
+group_by_provider() {
+    local name_pattern=${1:-\$name}
+    
+    perl -ne 'print if s/'"$CH_PATTERN"'/$2/g' < "$TMP_INPUT_FILE" | sort -u | \
+    while read name
+    do
+        eval "echo :$name_pattern"
+        echo '$Px .+;\\\\\\Q'$name'\\\\\\E:.+'; echo
+    done
+}
+################################################################################
 
 ############################## Parse arguments #################################
 while getopts 'x:X:f:F:i:o:d:t:vh' o
@@ -88,8 +133,7 @@ do
         shift 1
         ;;
     h)
-        echo "$BASENAME version $VERSION"
-        echo 'This script reads a VDR channels.conf form standard input or file and orders channels according to the specified template.'
+        help
         usage
         exit 0
         ;;
@@ -141,29 +185,70 @@ mv "$TMP_OUTPUT_FILE" "$TMP_INPUT_FILE"
 ################################################################################
 
 ############################## Order channels ##################################
-debug "\nMatched:"
-grep -xvE '^\s*#.*$' "$TEMPLATE" | while read line
-do
-    if echo "$line" | grep -qE '^(:.+$|\s*)$'
-    then
-        echo "$line" >> "$OUTPUT"
-    elif grep -ixE "^$line\$" < "$TMP_INPUT_FILE" > "$TMP_FILE"
-    then
-        [ -z "$VERBOSE" ] || debug "$(wc -l < "$TMP_FILE") matches\t|\t$line"
-        cat "$TMP_FILE" >> "$OUTPUT"
 
-        if grep -vixE "^$line\$" < "$TMP_INPUT_FILE" > "$TMP_FILE"
+process_template() {
+    grep -xvE '^\s*#.*$' | while read line
+    do
+        local grep_args='G'
+        local rm_matched='false'
+        
+        case "$line" in
+        '')  echo >> "$OUTPUT"; continue ;;
+        :*)  echo "$line" >> "$OUTPUT"; continue ;;
+        '$e '*) eval "${line#\$e }"; continue ;;
+        '$t '*) eval "${line#\$t }" | process_template; continue ;;
+        '$'*)
+            grep_args="$(echo "$line" | grep -oE '\$[^ ]+')"
+            line="${line#$grep_args }"
+            grep_args="${grep_args#\$}"
+            
+            if [ "$(expr index "$grep_args" r)" != '0' ]
+            then
+                rm_matched='true'
+                grep_args="$(echo "$grep_args" | tr -d r)"
+            fi
+        ;;
+        esac
+        
+        [ ! -z "$grep_args" ] || grep_args='G'
+        if grep -$grep_args "$line" < "$TMP_INPUT_FILE" > "$TMP_FILE"
         then
-            mv "$TMP_FILE" "$TMP_INPUT_FILE"
+            [ -z "$VERBOSE" ] || debug "$(wc -l < "$TMP_FILE") matches\t|\t$line"
+            tee -a "$TMP_OUTPUT_FILE"< "$TMP_FILE" >> "$OUTPUT"
+            
+            if [ "$rm_matched" = 'true' ]
+            then
+                if [ "$(expr index "$grep_args" v)" != '0' ]
+                then
+                    grep_args="$(echo "$grep_args" | tr -d v)"
+                    [ ! -z "$grep_args" ] || grep_args='G'
+                else
+                    grep_args="v$grep_args"
+                fi
+                
+                if grep -$grep_args "$line" < "$TMP_INPUT_FILE" > "$TMP_FILE"
+                then
+                    mv "$TMP_FILE" "$TMP_INPUT_FILE"
+                fi
+            fi
+        else
+            debug "0 matches\t|\t$line"
         fi
-    else
-        debug "0 matches\t|\t$line"
-    fi
-done
+    done
+}
+
+debug "\nMatched:"
+> "$TMP_OUTPUT_FILE"
+process_template < "$TEMPLATE"
 
 debug '\nNot matched:'
 if [ ! -z "$VERBOSE" ] && [ -s "$TMP_INPUT_FILE" ]
 then
-    cat "$TMP_INPUT_FILE" >> "$DEBUG"
+    if [ -s "$TMP_OUTPUT_FILE" ]
+    then
+        grep -vF -f "$TMP_OUTPUT_FILE" < "$TMP_INPUT_FILE" >> "$DEBUG"
+    else
+        cat "$TMP_INPUT_FILE" >> "$DEBUG"
+    fi
 fi
 ################################################################################
