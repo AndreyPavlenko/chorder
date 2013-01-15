@@ -79,7 +79,7 @@ debug() {
 group_by_provider() {
     local name_pattern=${1:-\$name}
     
-    perl -ne 'print if s/'"$CH_PATTERN"'/$2/g' < "$TMP_INPUT_FILE" | sort -u | \
+    perl -ne 'print if s/'"$CH_PATTERN"'/$2/g' | sort -u | \
     while read name
     do
         eval "echo :$name_pattern"
@@ -195,8 +195,20 @@ process_template() {
         case "$line" in
         '')  echo >> "$OUTPUT"; continue ;;
         :*)  echo "$line" >> "$OUTPUT"; continue ;;
-        '$e '*) eval "${line#\$e }"; continue ;;
-        '$t '*) eval "${line#\$t }" | process_template; continue ;;
+        '$e '*) 
+            exec 3<&0
+            exec < "$TMP_INPUT_FILE"
+            eval "${line#\$e }"
+            exec 0<&3 3<&-
+            continue
+            ;;
+        '$t '*) 
+            exec 3<&0
+            exec < "$TMP_INPUT_FILE"
+            eval "${line#\$t }" | process_template
+            exec 0<&3 3<&-
+            continue
+            ;;
         '$'*)
             grep_args="$(echo "$line" | grep -oE '\$[^ ]+')"
             line="${line#$grep_args }"

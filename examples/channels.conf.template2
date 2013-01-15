@@ -1,10 +1,16 @@
 # group_by_provider is an internal function which groups all channels by the 
 # provider name. The function accepts one argument - name pattern. The default 
-# value is $name.
+# value of the name pattern is $name.
 $t group_by_provider '~$name~'
 
+# This is a more complicated example of dynamic template generation. The below
+# script generates template matching all HD channels with unique names.
 :HD
-HD
+$t grep -Po '^.*?HD.*?;' | sort -Vu |\
+while read name;\
+do\
+    echo '$Pxm1 .*?\\\\\\Q'$name'\\\\\\E.+';\
+done
 
 :Эфирные
 Домашний;HTB+
