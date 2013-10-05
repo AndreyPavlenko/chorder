@@ -36,7 +36,7 @@ _changelog() {
 }
 
 version() {
-    local version="$(grep -m 1 '^VERSION' chorder | awk -F "[=']" '{print $3}')"
+    local version="$(grep -m 1 '^VERSION' $DIR/chorder | awk -F "[=']" '{print $3}')"
     local ci_count=$(git --git-dir="$DIR/.git" log --format='%H' | wc -l)
     local sha_short=$(git --git-dir="$DIR/.git" rev-parse --short HEAD)
     echo "${version}-${ci_count}~${sha_short}"
