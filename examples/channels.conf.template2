@@ -37,7 +37,7 @@ $Eix (Россия 2|Теннис|Баскетбол|.+КХЛ|.*(спорт|spor
 :Кино
 $r Кинорейс .*;HTB+
 $r Экран .*;TricolorTV
-$Exi (.*(кино|MGM|TV1000|Комедия ТВ|Премьера|Русский Иллюзион|Эгоист ТВ|AXN Sci Fi|FOX|SONY ТВ|TV-21|Universal|Zone Romantica).*;HTB\\+|(Кинопоказ).*;TricolorTV):.+
+$Exi (.*(кино|MGM|(TV|TB) ?1000|Комедия ТВ|Премьера|Иллюзион|Эгоист ТВ|AXN Sci Fi|FOX|SONY ТВ|TV-21|Universal|Zone Romantica|AMEDIA|МНОГОсерийное ТВ|Индия ТВ|CBS Drama).*;HTB\\+|(Кинопоказ).*;TricolorTV):.+
 
 :Новостные
 $Ex .*(BBC|Bloomberg|CNN|Euronews|France 24|Дождь|Комсомольская правда|Москва 24|Первый МЕТЕО|Подмосковье|РБК-ТВ|Россия 24).*;HTB\\+:.+
