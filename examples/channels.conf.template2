@@ -13,34 +13,34 @@ do\
 done
 
 :Эфирные
-Домашний;HTB+
-Звезда;HTB+
-НТВ;HTB+
-OTP;HTB+
-ПЕРЕЦ;HTB+
-$iE Первый( канал)?( HD.*)?;HTB\\+
-Пятый канал;HTB+
-$i Рен ТВ;HTB+
-$E Россия (1|К|HD);HTB+
-СТС-Москва;HTB+
-ТВ3;TricolorTV
-ТВЦ;HTB+
-ТНТ;HTB+
+$ir Домашний;HTB+
+$ir Звезда;HTB+
+$ir НТВ;HTB+
+$ir ОТР;HTB+
+$ir Перец;HTB+
+$irE Первый( канал)?( HD.*)?;HTB\\+
+$ir Пятый канал;HTB+
+$ir Рен ТВ;HTB+
+$irE Россия (1|К|HD);HTB+
+$ir СТС;HTB+
+$ir ТВ3;HTB+
+$ir ТВЦ;HTB+
+$ir ТНТ;HTB+
 
 :ФУТБОЛ
-$i футбол.*;HTB+
-$i футбол.*;TricolorTV
+$ir футбол.*;HTB+
+$ir футбол.*;TricolorTV
 
 :Спорт
-$Eix (Россия 2|Теннис|Баскетбол|.+КХЛ|.*(спорт|sports?).*);HTB\\+:.+
+$Eirx .*(Россия 2|(Теннис|Баскетбол|КХЛ|(спорт|sports?)).*);HTB\\+:.+
 
 :Кино
 $r Кинорейс .*;HTB+
 $r Экран .*;TricolorTV
-$Exi (.*(кино|MGM|(TV|TB) ?1000|Комедия ТВ|Премьера|Иллюзион|Эгоист ТВ|AXN Sci Fi|FOX|SONY ТВ|TV-21|Universal|Zone Romantica|AMEDIA|МНОГОсерийное ТВ|Индия ТВ|CBS Drama).*;HTB\\+|(Кинопоказ).*;TricolorTV):.+
+$Exir (.*(кино|MGM|(TV|TB) ?1000|Комедия ТВ|Премьера|Иллюзион|Эгоист ТВ|FOX|SONY ТВ|TВ-21|Universal|AMEDIA|МНОГОсерийное ТВ|Индия ТВ|CBS Drama).*;HTB\\+|(Кинопоказ).*;TricolorTV):.+
 
 :Новостные
-$Ex .*(BBC|Bloomberg|CNN|Euronews|France 24|Дождь|Комсомольская правда|Москва 24|Первый МЕТЕО|Подмосковье|РБК-ТВ|Россия 24).*;HTB\\+:.+
+$Exir .*(5 канал|BBC|Bloomberg|CNN|Euronews|France 24|Дождь|Комсомольская правда|Москва 24|Первый МЕТЕО|Подмосковье|РБК-ТВ|Россия 24).*;HTB\\+:.+
 
 :Детские
-$Ex .*((Cartoon|Gulli|Jim Jam|Nickelodeon|TiJi|Детский мир|Канал Disney|Карусель|Karusel).*;HTB\\+|(Мультимания|Радость моя).*;TricolorTV):.+
+$Exir .*((Cartoon|Gulli|Jim ?Jam|Nickelodeon|TiJi|Детский мир|Канал Disney|Карусель|Karusel).*;HTB\\+|(Мультимания|Радость моя).*;TricolorTV):.+
