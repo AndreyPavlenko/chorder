@@ -67,6 +67,9 @@ OPTIONS:
    -o <file>    Write to the specified output file instead of stdout.
    -d <file>    Write debug messages to the specified file instead of sterr.
    -t <file>    Template file.
+   -U           Unique channels only. If there are several channels with the 
+                same name, provider and source, only the first channel is 
+                selected and the remaining are filtered out.
    -v           Verbose mode - print debug information.
    -h           Print help.
 EOF
@@ -89,7 +92,7 @@ group_by_provider() {
 ################################################################################
 
 ############################## Parse arguments #################################
-while getopts 'x:X:f:F:i:o:d:t:vh' o
+while getopts 'x:X:f:F:i:o:d:t:Uvh' o
 do
     case "$o" in
     x)
@@ -127,6 +130,10 @@ do
     t)
         TEMPLATE="$OPTARG"
         shift 2
+        ;;
+    U)
+        UNIQUE_ONLY='true'
+        shift 1
         ;;
     v)
         VERBOSE='true'
@@ -166,22 +173,25 @@ fi
 ################################################################################
 
 ############################## Delete duplicates ###############################
-debug '\nDuplicates:'
-> "$TMP_OUTPUT_FILE"
+if [ "$UNIQUE_ONLY" = 'true' ]
+then
+    debug '\nFiltered out:'
+    > "$TMP_OUTPUT_FILE"
 
-perl -ne 'print if s/'"$CH_PATTERN"'/$f7=(($7 eq 0) or (index($7, "0=", 0) eq 0)) ? "0(=.*)?" : "([1-9]|[0-9]{2,}?)(=.*)?"; " *(\\\\Q$1\\\\E) *".";"." *(\\\\Q$2\\\\E) *".":"." *(.+?) *".":"." *(.+?) *".":"." *(\\\\Q$5\\\\E) *".":"." *(.+?) *".":"." *($f7) *".":"." *(.+?) *".":"." *(.+?) *".":"." *(.+?) *".":"." *(.+?) *".":"." *(.+?) *".":"." *(.+?) *".":"." *(.+?) *"/ge' < "$TMP_INPUT_FILE" | sort -Vu | \
-while read i
-do
-    grep -P "^ $i\$" < "$TMP_INPUT_FILE" | tee "$TMP_FILE" | head -n 1 >> "$TMP_OUTPUT_FILE"
+    perl -ne 'print if s/'"$CH_PATTERN"'/$f7=(($7 eq 0) or (index($7, "0=", 0) eq 0)) ? "0(=.*)?" : "([1-9]|[0-9]{2,}?)(=.*)?"; " *(\\\\Q$1\\\\E) *".";"." *(\\\\Q$2\\\\E) *".":"." *(.+?) *".":"." *(.+?) *".":"." *(\\\\Q$5\\\\E) *".":"." *(.+?) *".":"." *($f7) *".":"." *(.+?) *".":"." *(.+?) *".":"." *(.+?) *".":"." *(.+?) *".":"." *(.+?) *".":"." *(.+?) *".":"." *(.+?) *"/ge' < "$TMP_INPUT_FILE" | sort -Vu | \
+    while read i
+    do
+        grep -P "^ $i\$" < "$TMP_INPUT_FILE" | tee "$TMP_FILE" | head -n 1 >> "$TMP_OUTPUT_FILE"
 
-    # Debug duplicates
-    if [ ! -z "$VERBOSE" ] && [ "$(wc -l < "$TMP_FILE")" != '1' ]
-    then
-        tail -n +2 "$TMP_FILE" >> "$DEBUG"
-    fi
-done
+        # Debug filtered
+        if [ ! -z "$VERBOSE" ] && [ "$(wc -l < "$TMP_FILE")" != '1' ]
+        then
+            tail -n +2 "$TMP_FILE" >> "$DEBUG"
+        fi
+    done
 
-mv "$TMP_OUTPUT_FILE" "$TMP_INPUT_FILE"
+    mv "$TMP_OUTPUT_FILE" "$TMP_INPUT_FILE"
+fi
 ################################################################################
 
 ############################## Order channels ##################################
