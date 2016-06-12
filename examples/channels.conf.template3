@@ -1,0 +1,13 @@
+# group_by_provider is an internal function which groups all channels by the 
+# provider name. The function accepts one argument - name pattern. The default 
+# value of the name pattern is $name.
+$t group_by_provider '~$name~'
+
+:Спорт
+$Exir .*(Футбол|Теннис|Бокс|КХЛ|Конный мир|Спорт|Sport?|МАТЧ).*;HTB\\+:.+
+
+:Кино
+$Exir .*(кино|MGM|(TV|TB) ?1000|Комедия ТВ|Премьера|Иллюзион\\+|Эгоист ТВ|FOX|Sony|TВ-21|AMEDIA|МНОГОсерийное ТВ|Индия ТВ|CBS Drama|Bollywood|Paramount|Русский бестселлер|Русский роман|Мир сериала|AMC).*;HTB\\+:.+
+
+:Детские
+$Exir (Cartoon Network|Gulli|Jim ?Jam|Nickelodeon|TiJi|Детский мир.*|Канал Disney|Карусель.*|Karusel int|Радость моя|Ani)( HD)?;HTB\\+:.+

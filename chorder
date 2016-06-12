@@ -14,8 +14,9 @@ BASENAME="$(basename "$0")"
 TMP_INPUT_FILE="$(mktemp $mktemp_args ${BASENAME}_XXX.in)"
 TMP_OUTPUT_FILE="$(mktemp $mktemp_args ${BASENAME}_XXX.out)"
 TMP_FILE="$(mktemp $mktemp_args ${BASENAME}_XXX.tmp)"
+RESULT_FILE="$(mktemp $mktemp_args ${BASENAME}_channels_XXX.conf)"
 
-cleanup() { rm -f "$TMP_INPUT_FILE" "$TMP_OUTPUT_FILE" "$TMP_FILE"; }
+cleanup() { rm -f "$TMP_INPUT_FILE" "$TMP_OUTPUT_FILE" "$TMP_FILE" "$RESULT_FILE"; }
 trap cleanup EXIT HUP INT QUIT TERM
 
 ################################ Functions ####################################
@@ -195,7 +196,6 @@ fi
 ################################################################################
 
 ############################## Order channels ##################################
-
 process_template() {
     grep -xvE '^\s*#.*$' | while read line
     do
@@ -203,8 +203,8 @@ process_template() {
         local rm_matched='false'
         
         case "$line" in
-        '')  echo >> "$OUTPUT"; continue ;;
-        :*)  echo "$line" >> "$OUTPUT"; continue ;;
+        '')  echo >> "$RESULT_FILE"; continue ;;
+        :*)  echo "$line" >> "$RESULT_FILE"; continue ;;
         '$e '*) 
             exec 3<&0
             exec < "$TMP_INPUT_FILE"
@@ -236,7 +236,7 @@ process_template() {
         if grep -$grep_args "$line" < "$TMP_INPUT_FILE" > "$TMP_FILE"
         then
             [ -z "$VERBOSE" ] || debug "$(wc -l < "$TMP_FILE") matches\t|\t$line"
-            tee -a "$TMP_OUTPUT_FILE"< "$TMP_FILE" >> "$OUTPUT"
+            tee -a "$TMP_OUTPUT_FILE"< "$TMP_FILE" >> "$RESULT_FILE"
             
             if [ "$rm_matched" = 'true' ]
             then
@@ -273,4 +273,26 @@ then
         cat "$TMP_INPUT_FILE" >> "$DEBUG"
     fi
 fi
+################################################################################
+
+####################### Increment RID for duplicates ###########################
+echo > "$TMP_FILE"
+cat "$RESULT_FILE" | while read line
+do
+    if echo "$line" | grep -qE "$CH_PATTERN"
+    then
+        count="$(grep -F "$line" "$TMP_FILE" | wc -l)"
+
+        if [ "$count" = '0' ]
+        then
+            echo "$line" >> "$OUTPUT"
+        else
+            echo "$line" | sed -r "s/:[0-9]+\$/:$count/" >> "$OUTPUT"
+        fi
+
+        echo "$line" >> "$TMP_FILE"
+    else
+        echo "$line" >> "$OUTPUT"
+    fi
+done
 ################################################################################
